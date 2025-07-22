@@ -1,0 +1,44 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: arzerin/finch-backend
+      IMAGE_TAG: latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build frontend Site
+      run: npm run build
+
+    - name: Login to Docker Hub
+      run: |
+        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    - name: Build Docker image
+      run: |
+        docker build -t $IMAGE_NAME:$IMAGE_TAG .
+        docker images | grep $IMAGE_NAME || (echo "❌ Docker image not built!" && exit 1)
+
+    - name: Push Docker image
+      run: |
+        docker push $IMAGE_NAME:$IMAGE_TAG
+        echo "✅ Docker image pushed: $IMAGE_NAME:$IMAGE_TAG"
